@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory, abort  # ← ADICIONEI abort
+from flask import Flask, request, jsonify, send_from_directory, abort
 from flask_cors import CORS
 import requests
 from urllib.parse import quote
@@ -22,7 +22,7 @@ INSTRUCOES = os.environ.get('INSTRUCOES_IA',
     "Use -- para comentários e formate corretamente."
 )
 
-# CACHE SIMPLES (adicionei)
+# Cache simples
 cache_scripts = {}
 
 def get_cache(prompt):
@@ -34,10 +34,10 @@ def set_cache(prompt, resposta):
 @app.route('/')
 def index():
     """Serve o arquivo HTML principal da pasta elements"""
-    # PROTEÇÃO BÁSICA (adicionei)
-    referer = request.headers.get("Referer")
-    if referer and "seusite.com" not in referer:  # ← MUDE para seu domínio
-        return abort(403, "Acesso negado")
+    # Proteção básica (descomente e configure quando estiver em produção)
+    # referer = request.headers.get("Referer")
+    # if referer and "seusite.com" not in referer:
+    #     return abort(403, "Acesso negado")
     
     try:
         return send_from_directory('elements', 'index.html')
@@ -60,13 +60,13 @@ def generate():
         data = request.json
         pergunta = data.get('prompt', '').strip()
         
-        # VALIDAÇÃO MELHORADA (adicionei)
+        # Validação
         if not pergunta:
             return jsonify({'error': 'Por favor, descreva o script que você precisa'}), 400
         if len(pergunta) < 10:
             return jsonify({'error': 'Detalhe mais o que você quer no script'}), 400
         
-        # VERIFICA CACHE (adicionei)
+        # Verifica cache
         cache = get_cache(pergunta)
         if cache:
             logger.info("📦 Script retornado do cache")
@@ -82,9 +82,9 @@ def generate():
         Gere um script Lua completo e funcional:"""
         
         prompt_codificado = quote(prompt_completo)
-        url_final = f"{URL_BASE}{prompt_codificado}?model={MODELO}&key={KEY}&max_tokens=2000"  ← ADICIONEI max_tokens
+        url_final = f"{URL_BASE}{prompt_codificado}?model={MODELO}&key={KEY}"
         
-        # AUMENTEI TIMEOUT pra 60 segundos
+        # Timeout de 60 segundos para scripts complexos
         r = requests.get(url_final, timeout=60)
         
         if r.status_code == 200 and r.text:
@@ -94,7 +94,7 @@ def generate():
             if not resposta.startswith('--'):
                 resposta = f"-- Script gerado pela Cyb3rAI\n-- Para: {pergunta}\n\n{resposta}"
             
-            # SALVA NO CACHE
+            # Salva no cache
             set_cache(pergunta, resposta)
             
             logger.info(f"✅ Script gerado - Tamanho: {len(resposta)} caracteres")
@@ -103,7 +103,6 @@ def generate():
             return jsonify({'error': f'Erro na API: {r.status_code}'}), 500
             
     except requests.exceptions.Timeout:
-        # TRATAMENTO ESPECÍFICO (adicionei)
         return jsonify({'error': '⏰ Script muito complexo, tempo esgotado! Tente dividir em partes.'}), 504
     except requests.exceptions.ConnectionError:
         return jsonify({'error': '🔌 Erro de conexão com a IA'}), 503
@@ -121,12 +120,10 @@ def status():
         'static_folder': 'elements'
     })
 
-# Handler para erros 404
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({'error': 'Endpoint não encontrado'}), 404
 
-# HEADERS DE SEGURANÇA (adicionei)
 @app.after_request
 def add_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
